@@ -1,130 +1,239 @@
+// Adafruit_NeoMatrix example for single NeoPixel Shield.
+// Scrolls 'Howdy' across the matrix in a portrait (vertical) orientation.
+// Link to library doc: https://learn.adafruit.com/adafruit-gfx-graphics-library/graphics-primitives
+
+#include <Adafruit_GFX.h>
+#include <Adafruit_NeoMatrix.h>
 #include <Adafruit_NeoPixel.h>
+#include "ListLib.h"
+#ifndef PSTR
+#define PSTR // Make Arduino Due happy
+#endif
 
-#define NUMPIXEL 256
-#define ROWS 16
-#define COLS 16
-#define PIXELPIN 3
-#define NUM_PATTERNS 6
+#define PIN 6
+#define NUMPIXELS 256
 
-uint32_t hexColor = 0x23ceff;
-int count = 0;
-int numPatterns = 6;
+// MATRIX DECLARATION:
+// Parameter 1 = width of NeoPixel matrix
+// Parameter 2 = height of matrix
+// Parameter 3 = pin number (most are valid)
+// Parameter 4 = matrix layout flags, add together as needed:
+//   NEO_MATRIX_TOP, NEO_MATRIX_BOTTOM, NEO_MATRIX_LEFT, NEO_MATRIX_RIGHT:
+//     Position of the FIRST LED in the matrix; pick two, e.g.
+//     NEO_MATRIX_TOP + NEO_MATRIX_LEFT for the top-left corner.
+//   NEO_MATRIX_ROWS, NEO_MATRIX_COLUMNS: LEDs are arranged in horizontal
+//     rows or in vertical columns, respectively; pick one or the other.
+//   NEO_MATRIX_PROGRESSIVE, NEO_MATRIX_ZIGZAG: all rows/columns proceed
+//     in the same order, or alternate lines reverse direction; pick one.
+//   See example below for these values in action.
+// Parameter 5 = pixel type flags, add together as needed:
+//   NEO_KHZ800  800 KHz bitstream (most NeoPixel products w/WS2812 LEDs)
+//   NEO_KHZ400  400 KHz (classic 'v1' (not v2) FLORA pixels, WS2811 drivers)
+//   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
+//   NEO_GRBW    Pixels are wired for GRBW bitstream (RGB+W NeoPixel products)
+//   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
 
-int grid[16][16] =
-{
-  {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
-  {16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31},
-  {32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47},
-  {48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63},
-  {64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79},
-  {80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 93, 94, 95},
-  {96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111},
-  {112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127},
-  {128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143},
-  {144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159},
-  {160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175},
-  {176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191},
-  {192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207},
-  {208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223},
-  {224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239},
-  {240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255}
-};
 
-Adafruit_NeoPixel pixel(NUMPIXEL, PIXELPIN, NEO_GRB + NEO_KHZ800);
-const int shockPin = 4;
-int randLimit = 2147483647;
+// Example for NeoPixel Shield.  In this application we'd like to use it
+// as a 5x8 tall matrix, with the USB port positioned at the top of the
+// Arduino.  When held that way, the first pixel is at the top right, and
+// lines are arranged in columns, progressive order.  The shield uses
+// 800 KHz (v2) pixels that expect GRB color data.
+Adafruit_NeoMatrix matrix = Adafruit_NeoMatrix(16, 16, 3,
+                            NEO_MATRIX_BOTTOM     + NEO_MATRIX_LEFT +
+                            NEO_MATRIX_ROWS + NEO_MATRIX_ZIGZAG,
+                            NEO_GRB            + NEO_KHZ800);
+
+const uint16_t topLeft[] = {0x0000, 0x0000};
+const uint16_t topRight[] = {0x000f, 0x0000};
+const uint16_t bottomRight[] = {0x000f, 0x000f};
+const uint16_t bottomLeft[] = {0x0000, 0x000f};
+
+const uint16_t randomColor = random(2147483647);
 
 void setup() {
-  // put your setup code here, to run once:
   Serial.begin(9600);
-  pinMode(PIXELPIN, OUTPUT);
-
-  pixel.begin();
-  pixel.show();
-  pixel.setBrightness(255);
+  matrix.begin();
+  matrix.setTextWrap(false);
+  matrix.setBrightness(40);
+  matrix.setTextColor(randomColor);
 }
 
-int currentPattern;
+int x    = matrix.width();
+int pass = 0;
+uint16_t randomCo = random(2147483647);
 
 void loop() {
-  //snake(ROWS, COLS);
-  
 
-  
+    rect_zoom_inOut(topLeft, randomCo, 55);
+    rect_zoom_inOut(topLeft, randomCo, 55);
+    draw_x(topLeft, 55);
+    draw_x(topLeft, 55);
+    //      random_for_now();
+    
+    matrix.show();
+    delay(300);
+
+  //int i = 4;
+
+  for (int i = 0 ; i < 16; i++)
+  {
+    uint16_t randomCo = 0x7568C6;
+    matrix.drawLine(topLeft[0], topLeft[1] + i, bottomRight[0], bottomRight[1] - i, randomCo);
+    matrix.show();
+    delay(55);
+  }
+  for (int i = 0 ; i < 16; i++)
+  {
+    uint16_t randomCo = 0xF63B4E;
+    matrix.drawLine(topLeft[0] + i, topLeft[1], bottomRight[0] - i, bottomRight[1], randomCo);
+    matrix.show();
+    delay(55);
+  }
+  for (int i = 0 ; i < 16; i++)
+  {
+    uint16_t randomCo = 0x3BDFF6;
+    matrix.drawLine(topLeft[0] , topLeft[1] - i, bottomRight[0], bottomRight[1] - i, randomCo);
+    matrix.show();
+    delay(55);
+  }
+  for (int i = 0 ; i < 16; i++)
+  {
+    uint16_t randomCo = 0x3BDFF6;
+    matrix.drawLine(topLeft[0], topLeft[1] + i, bottomRight[0], bottomRight[1] + i, randomCo);
+    matrix.show();
+    delay(55);
+  }
+
+  matrix.clear();
+
+  //  for (int i = 0 ; i < 16; i++)
+  //  {
+  //
+  //    matrix.drawLine(topLeft[0]], topLeft[1], bottomRight[0]], bottomRight[1], randomCo);
+  //    matrix.show();
+  //    delay(150);
+  //  }
+
 }
 
-/*
-    pixel.fill(color1, grid[0][0], 4);
-    pixel.fill(color1, grid[1][0], 1);
-    pixel.fill(color1, grid[1][3], 1);
-    pixel.fill(color1, grid[2][0], 1);
-*/
 
-void square(int numRows, int numCols)
+
+/*Helper Functions*/
+
+
+
+void random_for_now()
 {
-  long color = random(2147483647);
-  for (int i = 0; i < numRows; i++)
+  matrix.clear();
+  for (int i = 0; i < 700; i++)
   {
-    pixel.fill(color, grid[i][0], 16);
-    pixel.show();
-    delay(500);
+    int r1 = random(0, 16);
+    int r2 = random(0, 16);
+    matrix.drawPixel(r1, r2, randomCo);
+    matrix.show();
+    //delay(10);
   }
 }
 
-void snake(int numRows, int numCols)
+void draw_x(uint16_t origin[], int delayTime)
 {
-  long color = random(2147483647);
-  for (int i = 0; i < numRows; i++)
+  uint16_t randomCo = random(2147483647);
+  for (int i = 0; i < 16; i++)
   {
-    for (int j = 0; j < numRows; j++)
-    {
-      pixel.fill(color, grid[i][j], 16);
-      pixel.show();
-      delay(5);
-    }
+    uint16_t px = random(0, 15);
+    matrix.drawPixel(topLeft[0] + i, topLeft[1] + i, randomCo);
+    matrix.drawPixel(topRight[0] - i, topRight[1] + i, randomCo);
+    matrix.show();
+    delay(45);
   }
+  matrix.clear();
 }
 
-void squareSweep(int numRows, int numCols)
+void rect_zoom_inOut(uint16_t origin[], uint16_t color, int delayTime)
 {
-  long color = random(2147483647);
-  int j = 0;
-  for (int i = 0; i < numRows - 1; i++)
-  {
-    pixel.fill(color, grid[i][j], 16);
-    pixel.fill(color, grid[i + j][0], 1);
-    pixel.fill(color, grid[i + j][15], 1);
-    pixel.fill(color, grid[i + j][0], 1);
-    pixel.fill(color, grid[i + j][15], 1);
-    pixel.fill(color, grid[i + j][0], 1);
-    pixel.fill(color, grid[i + j][15], 1);
-    pixel.fill(color, grid[i + j][0], 1);
-    pixel.fill(color, grid[i + j][15], 1);
-    pixel.fill(color, grid[i + j][0], 1);
-    pixel.fill(color, grid[i + j][15], 1);
-    pixel.fill(color, grid[i + j][0], 1);
-    pixel.fill(color, grid[i + j][15], 1);
-    pixel.fill(color, grid[i + j][0], 1);
-    pixel.fill(color, grid[i + j][15], 1);
-    pixel.fill(color, grid[i + j][0], 1);
-    pixel.fill(color, grid[i + j][15], 1);
-    pixel.fill(color, grid[i + j][0], 1);
-    pixel.fill(color, grid[i + j][15], 1);
-    pixel.fill(color, grid[i + j][0], 1);
-    pixel.fill(color, grid[i + j][15], 1);
-    pixel.fill(color, grid[i + j][0], 1);
-    pixel.fill(color, grid[i + j][15], 1);
-    pixel.fill(color, grid[i + j][0], 1);
-    pixel.fill(color, grid[i + j][15], 1);
-    pixel.fill(color, grid[i + j][0], 1);
-    pixel.fill(color, grid[i + j][15], 1);
-    pixel.fill(color, grid[i + j][0], 1);
-    pixel.fill(color, grid[i + j][15], 1);
-    pixel.fill(color, grid[i + j][0], 16);
+  zoom_out_rect(topLeft, color, 55);
+  zoom_in_rect(topLeft, color, 55);
+}
 
-    pixel.show();
-    j++;
-    delay(50);
-  }
+void zoom_out_rect(uint16_t origin[], uint16_t color, int delayTime)
+{
+  uint16_t randomColor = random(2147483647);
+  matrix.drawRect(topLeft[0] + 7, topLeft[1] + 7, 2, 2, randomColor);
+  matrix.show();
+  matrix.clear();
+  delay(delayTime);
 
+  matrix.drawRect(topLeft[0] + 6, topLeft[1] + 6, 4, 4, randomColor);
+  matrix.show();
+  matrix.clear();
+  delay(delayTime);
+
+  matrix.drawRect(topLeft[0] + 5, topLeft[1] + 5, 6, 6, randomColor);
+  matrix.show();
+  matrix.clear();
+  delay(delayTime);
+
+  matrix.drawRect(topLeft[0] + 4, topLeft[1] + 4, 8, 8, randomColor);
+  matrix.show();
+  matrix.clear();
+
+  delay(delayTime);
+  matrix.drawRect(topLeft[0] + 3, topLeft[1] + 3, 10, 10, randomColor);
+  matrix.show();
+  matrix.clear();
+  delay(delayTime);
+
+  matrix.drawRect(topLeft[0] + 2, topLeft[1] + 2, 12, 12, randomColor);
+  matrix.show();
+  matrix.clear();
+  delay(delayTime);
+
+  matrix.drawRect(topLeft[0] + 1, topLeft[1] + 1, 14, 14, randomColor);
+  matrix.show();
+  matrix.clear();
+  delay(delayTime);
+
+  matrix.drawRect(topLeft[0], topLeft[1], 16, 16, randomColor);
+  matrix.show();
+  matrix.clear();
+  delay(delayTime);
+}
+
+void zoom_in_rect(uint16_t origin[], uint16_t color, int delayTime)
+{
+  uint16_t randomColor = random(2147483647);
+  matrix.drawRect(topLeft[0], topLeft[1], 16, 16, randomColor);
+  matrix.show();
+  matrix.clear();
+  delay(delayTime);
+  matrix.drawRect(topLeft[0] + 1, topLeft[1] + 1, 14, 14, randomColor);
+  matrix.show();
+  matrix.clear();
+  delay(delayTime);
+  matrix.drawRect(topLeft[0] + 2, topLeft[1] + 2, 12, 12, randomColor);
+  matrix.show();
+  matrix.clear();
+  delay(delayTime);
+  matrix.drawRect(topLeft[0] + 3, topLeft[1] + 3, 10, 10, randomColor);
+  matrix.show();
+  matrix.clear();
+  delay(delayTime);
+  matrix.drawRect(topLeft[0] + 4, topLeft[1] + 4, 8, 8, randomColor);
+  matrix.show();
+  matrix.clear();
+  delay(delayTime);
+  matrix.drawRect(topLeft[0] + 5, topLeft[1] + 5, 6, 6, randomColor);
+  matrix.show();
+  matrix.clear();
+  delay(delayTime);
+  matrix.drawRect(topLeft[0] + 6, topLeft[1] + 6, 4, 4, randomColor);
+  matrix.show();
+  matrix.clear();
+  delay(delayTime);
+  matrix.drawRect(topLeft[0] + 7, topLeft[1] + 7, 2, 2, randomColor);
+  matrix.show();
+  matrix.clear();
+  delay(delayTime);
+  matrix.clear();
 }
